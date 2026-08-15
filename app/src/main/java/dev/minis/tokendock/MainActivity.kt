@@ -1,0 +1,203 @@
+package dev.minis.tokendock
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.ExperimentalMaterial3Api
+import dev.minis.tokendock.data.Store
+import dev.minis.tokendock.sync.SyncScheduler
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { App() }
+    }
+}
+
+@Composable
+private fun App() {
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    var ocKey by remember { mutableStateOf<String?>(null) }
+    var glmKey by remember { mutableStateOf<String?>(null) }
+    var interval by remember { mutableStateOf("60") }
+    var busy by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(Unit) {
+        val state = Store.read(context)
+        ocKey = state.opencodeKey
+        glmKey = state.glmKey
+        interval = state.intervalMinutes.toString()
+    }
+
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            primary = Color(0xFFE8C36A),
+            background = Color(0xFF17191E),
+            surface = Color(0xFF1E2128),
+        ),
+    ) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbar) },
+            containerColor = Color(0xFF17191E),
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Spacer(Modifier.height(12.dp))
+                Text("TokenDock", fontSize = 26.sp, color = Color(0xFFE8C36A))
+                Text(
+                    "OpenCode Go / GLM Coding Plan 额度小组件",
+                    fontSize = 13.sp,
+                    color = Color(0xFF8A8F9A),
+                )
+                Spacer(Modifier.height(6.dp))
+
+                KeyField(
+                    title = "OpenCode Go API Key",
+                    hint = "sk-...（opencode.ai/go）",
+                    value = ocKey,
+                    onValueChange = { ocKey = it },
+                )
+                KeyField(
+                    title = "GLM Coding Plan API Key",
+                    hint = "（bigmodel.cn 国内站）",
+                    value = glmKey,
+                    onValueChange = { glmKey = it },
+                )
+
+                OutlinedTextField(
+                    value = interval,
+                    onValueChange = { interval = it.filter { c -> c.isDigit() }.take(4) },
+                    label = { Text("自动刷新间隔（分钟，15-720）") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = fieldColors,
+                )
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = {
+                            busy = true
+                            scope.launch {
+                                Store.saveKeys(context, ocKey.orEmpty(), glmKey.orEmpty())
+                                SyncScheduler.schedule(context, interval.toIntOrNull() ?: 60)
+                                SyncScheduler.syncNow(context)
+                                busy = false
+                                snackbar.showSnackbar("已保存，小组件稍后刷新")
+                            }
+                        },
+                        enabled = !busy,
+                    ) { Text("保存并同步") }
+                    Spacer(Modifier.width(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            busy = true
+                            scope.launch {
+                                SyncScheduler.syncNow(context)
+                                busy = false
+                                snackbar.showSnackbar("已触发手动同步")
+                            }
+                        },
+                        enabled = !busy,
+                    ) { Text("手动同步") }
+                    if (busy) {
+                        Spacer(Modifier.width(12.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.height(24.dp).width(24.dp),
+                        )
+                    }
+                }
+
+                Text(
+                    "• Key 只存在本机 DataStore，不上传任何第三方服务器\n" +
+                        "• 小组件显示最近一次同步的快照，点按打开本页\n" +
+                        "• 后台按设定间隔自动刷新（受系统调度影响可能有延迟）\n" +
+                        "• OpenCode 接口内置浏览器 UA（绕过 Cloudflare）；GLM 走国内站端点",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = Color(0xFF6E737E),
+                )
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeyField(
+    title: String,
+    hint: String,
+    value: String?,
+    onValueChange: (String) -> Unit,
+) {
+    Column {
+        Text(title, fontSize = 14.sp, color = Color(0xFFD7DAE0))
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = value ?: "",
+            onValueChange = onValueChange,
+            placeholder = { Text(hint, color = Color(0xFF6E737E)) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            colors = fieldColors,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+private val fieldColors
+    get() = TextFieldDefaults.outlinedTextFieldColors(
+        focusedTextColor = Color(0xFFF5F6F8),
+        unfocusedTextColor = Color(0xFFF5F6F8),
+        focusedBorderColor = Color(0xFFE8C36A),
+        unfocusedBorderColor = Color(0xFF3A3E48),
+        cursorColor = Color(0xFFE8C36A),
+    )

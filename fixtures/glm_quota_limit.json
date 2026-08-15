@@ -1,0 +1,42 @@
+{
+  "level": "lite",
+  "limits": [
+    {
+      "type": "TIME_LIMIT",
+      "label": "MCP 工具月配额",
+      "unit": 5,
+      "number": 1,
+      "total": 100,
+      "used": 0,
+      "remaining": 100,
+      "percentage": 0,
+      "reset": 1787041606998,
+      "details": [
+        {
+          "code": "search-prime",
+          "used": 0
+        },
+        {
+          "code": "web-reader",
+          "used": 0
+        },
+        {
+          "code": "zread",
+          "used": 0
+        }
+      ]
+    },
+    {
+      "type": "TOKENS_LIMIT",
+      "label": "5 小时 Token 窗口",
+      "unit": 3,
+      "number": 5,
+      "total": null,
+      "used": null,
+      "remaining": null,
+      "percentage": 1,
+      "reset": 1786826814399,
+      "details": []
+    }
+  ]
+}

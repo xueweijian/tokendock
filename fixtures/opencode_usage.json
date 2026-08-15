@@ -1,0 +1,22 @@
+{
+  "windows": {
+    "rolling": {
+      "status": "ok",
+      "percent": 0.0,
+      "percent_remaining": 100.0,
+      "resets_at": "2026-08-15T21:47:44.309Z"
+    },
+    "weekly": {
+      "status": "ok",
+      "percent": 9.0,
+      "percent_remaining": 91.0,
+      "resets_at": "2026-08-17T00:00:00.309Z"
+    },
+    "monthly": {
+      "status": "ok",
+      "percent": 4.0,
+      "percent_remaining": 96.0,
+      "resets_at": "2026-09-13T02:50:26.309Z"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TokenDock" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#17191E</item>
+        <item name="android:statusBarColor">#17191E</item>
+        <item name="android:navigationBarColor">#17191E</item>
+    </style>
+</resources>

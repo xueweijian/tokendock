@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TokenDock 前景：深底上一枚金色圆环 + 内嵌闪电，简洁偏几何 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 金色圆环（进度环示意，缺口在右上） -->
+    <path
+        android:pathData="M54,54 m-26,0 a26,26 0 1,0 42,-9"
+        android:strokeColor="#E8C36A"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- 中心闪电 -->
+    <path
+        android:pathData="M56,38 L44,57 L52,57 L48,72 L62,50 L53,50 Z"
+        android:fillColor="#E8C36A" />
+</vector>
