@@ -34,7 +34,7 @@ object OpencodeApi {
         val obj = usage.optJSONObject(key) ?: return null
         val resets = obj.optString("resetsAt", "").replace("Z", "+00:00")
         val millis = runCatching { Instant.parse(resets).toEpochMilli() }.getOrNull()
-        return Progress.of(obj.opt("percent"), millis)
+        return Progress.of(obj.optNumber("percent") as Number?, millis)
     }
 }
 
@@ -67,7 +67,7 @@ object GlmApi {
                 "TOKENS_LIMIT" -> {
                     // (unit=3,number=5)=5小时窗口；(unit=6,number=1)=周额度
                     if (lim.optInt("unit") == 3 && lim.optInt("number") == 5 && tokens5h == null) {
-                        tokens5h = Progress.of(lim.opt("percentage"), reset)
+                        tokens5h = Progress.of(lim.optNumber("percentage") as Number?, reset)
                     }
                 }
                 "TIME_LIMIT" -> {

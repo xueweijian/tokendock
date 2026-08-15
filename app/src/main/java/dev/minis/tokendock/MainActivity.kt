@@ -20,11 +20,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -117,7 +117,13 @@ private fun App() {
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = fieldColors,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color(0xFFF5F6F8),
+                        unfocusedTextColor = Color(0xFFF5F6F8),
+                        focusedBorderColor = Color(0xFFE8C36A),
+                        unfocusedBorderColor = Color(0xFF3A3E48),
+                        cursorColor = Color(0xFFE8C36A),
+                    ),
                 )
 
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -169,6 +175,7 @@ private fun App() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KeyField(
     title: String,
@@ -187,17 +194,13 @@ private fun KeyField(
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            colors = fieldColors,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color(0xFFF5F6F8),
+                unfocusedTextColor = Color(0xFFF5F6F8),
+                focusedBorderColor = Color(0xFFE8C36A),
+                unfocusedBorderColor = Color(0xFF3A3E48),
+                cursorColor = Color(0xFFE8C36A),
+            ),
         )
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-private val fieldColors
-    get() = TextFieldDefaults.outlinedTextFieldColors(
-        focusedTextColor = Color(0xFFF5F6F8),
-        unfocusedTextColor = Color(0xFFF5F6F8),
-        focusedBorderColor = Color(0xFFE8C36A),
-        unfocusedBorderColor = Color(0xFF3A3E48),
-        cursorColor = Color(0xFFE8C36A),
-    )
