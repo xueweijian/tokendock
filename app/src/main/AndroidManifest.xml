@@ -20,15 +20,39 @@
         </activity>
 
         <receiver
-            android:name=".widget.QuotaWidgetReceiver"
+            android:name=".widget.HeroWidgetReceiver"
             android:exported="false"
-            android:label="TokenDock">
+            android:label="TokenDock · 大字">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/quota_widget_info" />
+                android:resource="@xml/widget_info_hero" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RingWidgetReceiver"
+            android:exported="false"
+            android:label="TokenDock · 双环">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_ring" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TableWidgetReceiver"
+            android:exported="false"
+            android:label="TokenDock · 数据表">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_table" />
         </receiver>
     </application>
 </manifest>

@@ -41,7 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import dev.minis.tokendock.data.Store
+import dev.minis.tokendock.sync.SyncEngine
 import dev.minis.tokendock.sync.SyncScheduler
+import dev.minis.tokendock.widget.refreshAllWidgets
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +69,33 @@ private fun App() {
         ocKey = state.opencodeKey
         glmKey = state.glmKey
         interval = state.intervalMinutes.toString()
+        // 启动静默补一次同步：解决"进程被冻/杀后周期任务迟迟不跑"的陈旧数据
+        if (state.configured) SyncScheduler.syncNow(context)
+    }
+
+    /** 真同步：直接调引擎，全程阻塞等待，完成后回显真实结果 + 刷组件 */
+    fun syncDirect() {
+        busy = true
+        scope.launch {
+            Store.setRefreshing(context, System.currentTimeMillis())
+            runCatching { refreshAllWidgets(context) } // 组件按钮先变"同步中"
+            val result = SyncEngine.sync(context)
+            Store.setRefreshing(context, 0L)
+            busy = false
+            val msg = when {
+                !result.anyAttempted -> "尚未配置 API Key"
+                result.allOk -> buildString {
+                    append("同步成功")
+                    result.opencode?.ocRolling?.let { append(" · OC 5h ${it.percent}%") }
+                    result.glm?.glmTokens5h?.let { append(" · GLM 5h ${it.percent}%") }
+                }
+                else -> "同步失败：" + listOfNotNull(
+                    result.opencode?.takeIf { !it.ok }?.errorMessage,
+                    result.glm?.takeIf { !it.ok }?.errorMessage,
+                ).joinToString(" / ")
+            }
+            snackbar.showSnackbar(msg)
+        }
     }
 
     MaterialTheme(
@@ -133,23 +162,14 @@ private fun App() {
                             scope.launch {
                                 Store.saveKeys(context, ocKey.orEmpty(), glmKey.orEmpty())
                                 SyncScheduler.schedule(context, interval.toIntOrNull() ?: 60)
-                                SyncScheduler.syncNow(context)
-                                busy = false
-                                snackbar.showSnackbar("已保存，小组件稍后刷新")
+                                syncDirect()
                             }
                         },
                         enabled = !busy,
                     ) { Text("保存并同步") }
                     Spacer(Modifier.width(12.dp))
                     OutlinedButton(
-                        onClick = {
-                            busy = true
-                            scope.launch {
-                                SyncScheduler.syncNow(context)
-                                busy = false
-                                snackbar.showSnackbar("已触发手动同步")
-                            }
-                        },
+                        onClick = { syncDirect() },
                         enabled = !busy,
                     ) { Text("手动同步") }
                     if (busy) {
@@ -162,7 +182,8 @@ private fun App() {
 
                 Text(
                     "• Key 只存在本机 DataStore，不上传任何第三方服务器\n" +
-                        "• 小组件显示最近一次同步的快照，点按打开本页\n" +
+                        "• 三种小组件（大字 / 双环 / 数据表）可在桌面长按挑选\n" +
+                        "• 点小组件右上角 ⟳ 立即刷新，无需打开 app\n" +
                         "• 后台按设定间隔自动刷新（受系统调度影响可能有延迟）\n" +
                         "• OpenCode 接口内置浏览器 UA（绕过 Cloudflare）；GLM 走国内站端点",
                     fontSize = 12.sp,

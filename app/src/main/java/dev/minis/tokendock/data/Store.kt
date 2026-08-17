@@ -3,6 +3,7 @@ package dev.minis.tokendock.data
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
@@ -15,6 +16,7 @@ private val KEY_GLM_KEY = stringPreferencesKey("glm_key")
 private val KEY_INTERVAL = intPreferencesKey("interval_minutes")
 private val KEY_OC_SNAPSHOT = stringPreferencesKey("oc_snapshot_json")
 private val KEY_GLM_SNAPSHOT = stringPreferencesKey("glm_snapshot_json")
+private val KEY_REFRESHING_SINCE = longPreferencesKey("refreshing_since")
 
 object Store {
 
@@ -25,6 +27,7 @@ object Store {
             intervalMinutes = this[KEY_INTERVAL] ?: 60,
             opencode = this[KEY_OC_SNAPSHOT]?.let { decodeSnapshot(it) },
             glm = this[KEY_GLM_SNAPSHOT]?.let { decodeSnapshot(it) },
+            refreshingSinceMillis = this[KEY_REFRESHING_SINCE] ?: 0L,
         )
     }
 
@@ -44,6 +47,11 @@ object Store {
             val key = if (snapshot.providerId == "opencode") KEY_OC_SNAPSHOT else KEY_GLM_SNAPSHOT
             it[key] = encodeSnapshot(snapshot)
         }
+    }
+
+    /** 标记"同步进行中"。时间戳供 UI 做 2 分钟脏状态兜底。 */
+    suspend fun setRefreshing(context: Context, sinceMillis: Long) {
+        context.dockDataStore.edit { it[KEY_REFRESHING_SINCE] = sinceMillis }
     }
 }
 

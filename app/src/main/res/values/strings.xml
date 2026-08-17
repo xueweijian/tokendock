@@ -2,4 +2,7 @@
 <resources>
     <string name="app_name">TokenDock</string>
     <string name="widget_description">OpenCode Go / GLM 额度监控</string>
+    <string name="widget_desc_hero">大字 Hero · 5h 窗口为主角（Apple 天气风）</string>
+    <string name="widget_desc_ring">双环 · 三段弧显示全部窗口（Fitness rings 风）</string>
+    <string name="widget_desc_table">数据表 · 全窗口明细（Dashboard 风）</string>
 </resources>

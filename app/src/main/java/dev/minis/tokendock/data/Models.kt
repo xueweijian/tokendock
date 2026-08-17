@@ -35,6 +35,7 @@ data class DockState(
     val opencode: ProviderSnapshot? = null,
     val glm: ProviderSnapshot? = null,
     val intervalMinutes: Int = 60,
+    val refreshingSinceMillis: Long = 0L,        // >0 表示有同步进行中（脏状态由 UI 层按 2 分钟兜底）
 ) {
     val configured: Boolean get() = opencodeKey.isNotBlank() || glmKey.isNotBlank()
 }
