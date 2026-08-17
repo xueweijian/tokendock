@@ -6,9 +6,9 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
-import androidx.glance.action.actionRunCallback
-import androidx.glance.appwidget.CircleIconButton
-import androidx.glance.appwidget.ImageProvider
+import androidx.glance.ImageProvider
+import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.components.CircleIconButton
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.layout.Box
@@ -44,7 +44,7 @@ object W {
 /** 状态点：8dp 圆点，颜色即语义 */
 @Composable
 fun StatusDot(level: StatusLevel, modifier: GlanceModifier = GlanceModifier) {
-    Box(modifier = modifier.size(8.dp).cornerRadius(4.dp).background(W.statusColor(level)))
+    Box(modifier = modifier.size(8.dp).cornerRadius(4.dp).background(W.statusColor(level))) {}
 }
 
 /**
@@ -69,7 +69,7 @@ fun RefreshIconButton(refreshing: Boolean, modifier: GlanceModifier = GlanceModi
 /** 发丝分割线 */
 @Composable
 fun HairLine(modifier: GlanceModifier = GlanceModifier) {
-    Box(modifier = modifier.fillMaxWidth().height(1.dp).background(W.track))
+    Box(modifier = modifier.fillMaxWidth().height(1.dp).background(W.track)) {}
 }
 
 /** 区块标题（金色小字） */
