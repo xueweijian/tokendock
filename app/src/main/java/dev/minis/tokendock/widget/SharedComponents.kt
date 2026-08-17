@@ -7,7 +7,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
 import androidx.glance.action.actionRunCallback
-import androidx.glance.appwidget.IconButton
+import androidx.glance.appwidget.CircleIconButton
 import androidx.glance.appwidget.ImageProvider
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
@@ -47,16 +47,22 @@ fun StatusDot(level: StatusLevel, modifier: GlanceModifier = GlanceModifier) {
     Box(modifier = modifier.size(8.dp).cornerRadius(4.dp).background(W.statusColor(level)))
 }
 
-/** 右上角刷新按钮：纯图标，同步中变灰。热区 40dp。 */
+/**
+ * 右上角刷新按钮：纯图标圆形，同步中变灰。
+ * 视觉 40dp。CircleIconButton 用 disabled 状态表达"同步中"。
+ */
 @Composable
 fun RefreshIconButton(refreshing: Boolean, modifier: GlanceModifier = GlanceModifier) {
-    IconButton(
+    CircleIconButton(
         imageProvider = ImageProvider(
             if (refreshing) R.drawable.ic_refresh_dim else R.drawable.ic_refresh
         ),
         contentDescription = if (refreshing) "同步中" else "刷新额度",
         onClick = actionRunCallback<RefreshAction>(),
-        modifier = modifier.size(40.dp),
+        modifier = modifier,
+        enabled = !refreshing,
+        backgroundColor = ColorProvider(W.card),
+        contentColor = ColorProvider(if (refreshing) W.dim else W.brand),
     )
 }
 

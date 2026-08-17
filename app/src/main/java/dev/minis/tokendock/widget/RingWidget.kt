@@ -2,6 +2,7 @@ package dev.minis.tokendock.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -11,6 +12,8 @@ import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.Image
 import androidx.glance.appwidget.ImageProvider
+import androidx.glance.appwidget.cornerRadius
+import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -23,6 +26,7 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import dev.minis.tokendock.MainActivity
@@ -121,6 +125,7 @@ class RingWidget : BaseQuotaWidget() {
                         )
                     ),
                     contentDescription = "${block.title} ${block.heroPercent ?: 0}%",
+                    modifier = GlanceModifier.size(RING_DP.dp),
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
