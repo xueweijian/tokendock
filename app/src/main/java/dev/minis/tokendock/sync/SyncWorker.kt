@@ -9,7 +9,7 @@ import dev.minis.tokendock.data.Store
 class SyncWorker(
     context: Context,
     params: WorkerParameters,
-) : CoroutineWorker() {
+) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val context = applicationContext
