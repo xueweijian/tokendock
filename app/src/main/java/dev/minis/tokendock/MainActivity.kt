@@ -69,8 +69,12 @@ private fun App() {
         ocKey = state.opencodeKey
         glmKey = state.glmKey
         interval = state.intervalMinutes.toString()
-        // 启动静默补一次同步：解决"进程被冻/杀后周期任务迟迟不跑"的陈旧数据
-        if (state.configured) SyncScheduler.syncNow(context)
+        // 启动静默补一次同步 + 重挂周期任务：
+        // OEM（HyperOS 等）升级/清理后会丢弃周期 WorkManager 任务，重挂确保存活
+        if (state.configured) {
+            SyncScheduler.schedule(context, state.intervalMinutes)
+            SyncScheduler.syncNow(context)
+        }
     }
 
     /** 真同步：直接调引擎，全程阻塞等待，完成后回显真实结果 + 刷组件 */
@@ -80,7 +84,9 @@ private fun App() {
             Store.setRefreshing(context, System.currentTimeMillis())
             runCatching { refreshAllWidgets(context) } // 组件按钮先变"同步中"
             val result = SyncEngine.sync(context)
+            // 顺序：先清标志、后刷组件（否则按钮永久置灰，v0.2.1 bug ②）
             Store.setRefreshing(context, 0L)
+            runCatching { refreshAllWidgets(context) }
             busy = false
             val msg = when {
                 !result.anyAttempted -> "尚未配置 API Key"
