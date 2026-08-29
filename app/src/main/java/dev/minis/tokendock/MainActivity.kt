@@ -69,27 +69,36 @@ private fun App() {
         ocKey = state.opencodeKey
         glmKey = state.glmKey
         interval = state.intervalMinutes.toString()
-        // 启动静默补一次同步 + 重挂周期任务：
-        // OEM（HyperOS 等）升级/清理后会丢弃周期 WorkManager 任务，重挂确保存活
+        // 启动重挂周期任务 + 静默补一次同步
         if (state.configured) {
             SyncScheduler.schedule(context, state.intervalMinutes)
             SyncScheduler.syncNow(context)
         }
     }
 
-    /** 真同步：直接调引擎，全程阻塞等待，完成后回显真实结果 + 刷组件 */
+    /** 真同步：直接调引擎，finally 必清 busy/refreshing 并刷组件 */
     fun syncDirect() {
+        if (busy) return
         busy = true
         scope.launch {
-            Store.setRefreshing(context, System.currentTimeMillis())
-            runCatching { refreshAllWidgets(context) } // 组件按钮先变"同步中"
-            val result = SyncEngine.sync(context)
-            // 顺序：先清标志、后刷组件（否则按钮永久置灰，v0.2.1 bug ②）
-            Store.setRefreshing(context, 0L)
-            runCatching { refreshAllWidgets(context) }
-            busy = false
+            var result: dev.minis.tokendock.sync.SyncResult? = null
+            try {
+                Store.setRefreshing(context, System.currentTimeMillis())
+                runCatching { refreshAllWidgets(context) }
+                result = SyncEngine.sync(context)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                result = dev.minis.tokendock.sync.SyncResult(
+                    dev.minis.tokendock.data.ProviderSnapshot("opencode", false, e.message?.take(120), System.currentTimeMillis()),
+                    null,
+                )
+            } finally {
+                Store.setRefreshing(context, 0L)
+                runCatching { refreshAllWidgets(context) }
+                busy = false
+            }
             val msg = when {
-                !result.anyAttempted -> "尚未配置 API Key"
+                result == null || !result.anyAttempted -> "尚未配置 API Key"
                 result.allOk -> buildString {
                     append("同步成功")
                     result.opencode?.ocRolling?.let { append(" · OC 5h ${it.percent}%") }
@@ -102,6 +111,16 @@ private fun App() {
             }
             snackbar.showSnackbar(msg)
         }
+    }
+
+    val intervalInt = interval.toIntOrNull()
+    val intervalClamped = intervalInt?.coerceIn(15, 720)
+    val intervalHint = when {
+        interval.isEmpty() -> ""
+        intervalInt == null -> "请输入数字"
+        intervalInt < 15 -> "系统最小 15 分钟，将按 15 执行"
+        intervalInt > 720 -> "最大 720 分钟，将按 720 执行"
+        else -> "每 $intervalClamped 分钟自动刷新"
     }
 
     MaterialTheme(
@@ -149,6 +168,7 @@ private fun App() {
                     value = interval,
                     onValueChange = { interval = it.filter { c -> c.isDigit() }.take(4) },
                     label = { Text("自动刷新间隔（分钟，15-720）") },
+                    supportingText = { if (intervalHint.isNotEmpty()) Text(intervalHint, color = Color(0xFF8A8F9A)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -164,10 +184,11 @@ private fun App() {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = {
-                            busy = true
                             scope.launch {
-                                Store.saveKeys(context, ocKey.orEmpty(), glmKey.orEmpty())
-                                SyncScheduler.schedule(context, interval.toIntOrNull() ?: 60)
+                                val mins = interval.toIntOrNull()?.coerceIn(15, 720) ?: 60
+                                Store.saveKeysAndInterval(context, ocKey.orEmpty(), glmKey.orEmpty(), mins)
+                                interval = mins.toString()
+                                SyncScheduler.schedule(context, mins)
                                 syncDirect()
                             }
                         },
@@ -190,7 +211,7 @@ private fun App() {
                     "• Key 只存在本机 DataStore，不上传任何第三方服务器\n" +
                         "• 三种小组件（大字 / 双环 / 数据表）可在桌面长按挑选\n" +
                         "• 点小组件右上角 ⟳ 立即刷新，无需打开 app\n" +
-                        "• 后台按设定间隔自动刷新（受系统调度影响可能有延迟）\n" +
+                        "• 后台按设定间隔自动刷新（系统至少 15 分钟，输入 1 会按 15 执行）\n" +
                         "• OpenCode 接口内置浏览器 UA（绕过 Cloudflare）；GLM 走国内站端点",
                     fontSize = 12.sp,
                     lineHeight = 18.sp,

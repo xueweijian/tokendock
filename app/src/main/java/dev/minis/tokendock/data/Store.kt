@@ -42,6 +42,15 @@ object Store {
         context.dockDataStore.edit { it[KEY_INTERVAL] = minutes.coerceIn(15, 720) }
     }
 
+    /** 原子保存 keys + interval（单次 edit，避免双重 DataStore 事务竞态） */
+    suspend fun saveKeysAndInterval(context: Context, ocKey: String, glmKey: String, minutes: Int) {
+        context.dockDataStore.edit {
+            it[KEY_OC_KEY] = ocKey.trim()
+            it[KEY_GLM_KEY] = glmKey.trim()
+            it[KEY_INTERVAL] = minutes.coerceIn(15, 720)
+        }
+    }
+
     suspend fun saveSnapshot(context: Context, snapshot: ProviderSnapshot) {
         context.dockDataStore.edit {
             val key = if (snapshot.providerId == "opencode") KEY_OC_SNAPSHOT else KEY_GLM_SNAPSHOT
