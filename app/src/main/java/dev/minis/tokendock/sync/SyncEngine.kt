@@ -7,8 +7,9 @@ import dev.minis.tokendock.data.ProviderSnapshot
 import dev.minis.tokendock.data.Store
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 /** 一次同步的结果（app 内回显用） */
 data class SyncResult(
@@ -22,32 +23,54 @@ data class SyncResult(
 /**
  * 同步引擎：三个入口（widget 刷新按钮 / app 手动同步 / 周期任务）共用。
  *
- * v0.3.0 变更：
- * - 两家 API 并行拉取（整体耗时 = max(OC, GLM) 而非求和），单家 8s 超时，
- *   保证 widget 点击的内联同步（10s goAsync 窗口）能跑完；
- * - 引擎不再负责刷组件 UI —— refreshing 标志清除后必须重刷一次组件
- *   （否则按钮永久停留"置灰禁用"态，v0.2.1 实测 bug），刷新时机交由各入口
- *   在「清标志之后」统一执行。
- *
- * 网络一律跑在 Dispatchers.IO —— 调用方在主线程直调也安全
- * （v0.2.0 曾因 app 入口在主线程直调炸 NetworkOnMainThreadException）。
+ * v0.3.1：
+ * - supervisorScope + per-provider withTimeout(12s)，一家失败/超时不牵连另一家；
+ * - 失败也merge落盘（保留旧 percent，更新 errorMessage+fetchedAt），保证时间戳每次都动；
+ * - 引擎不再刷组件 UI，由各入口在 finally 清标志后统一刷。
  */
 object SyncEngine {
+
+    const val PER_PROVIDER_TIMEOUT_MS: Long = 12_000L
 
     suspend fun sync(context: Context): SyncResult = withContext(Dispatchers.IO) {
         val state = Store.read(context)
         if (!state.configured) return@withContext SyncResult(null, null)
-
-        coroutineScope {
+        supervisorScope {
             val ocDeferred = state.opencodeKey.takeIf { it.isNotBlank() }
-                ?.let { key -> async { fetchOnIo("opencode") { OpencodeApi.fetch(key) } } }
+                ?.let { key -> async { fetchWithTimeout("opencode") { OpencodeApi.fetch(key) } } }
             val glmDeferred = state.glmKey.takeIf { it.isNotBlank() }
-                ?.let { key -> async { fetchOnIo("glm") { GlmApi.fetch(key) } } }
-            // 各家拉完立即持久化：即使另一家超时/失败，已完成的新数据不丢
-            val oc = ocDeferred?.await()?.also { persist(context, it, state.opencode != null) }
-            val glm = glmDeferred?.await()?.also { persist(context, it, state.glm != null) }
+                ?.let { key -> async { fetchWithTimeout("glm") { GlmApi.fetch(key) } } }
+            // 各家拉完立即持久化：一家失败不丢另一家；失败也落盘以刷新时间戳
+            val oc = ocDeferred?.await()?.let { fresh ->
+                val merged = mergePreservingData(state.opencode, fresh)
+                persistMerged(context, merged)
+                merged
+            }
+            val glm = glmDeferred?.await()?.let { fresh ->
+                val merged = mergePreservingData(state.glm, fresh)
+                persistMerged(context, merged)
+                merged
+            }
             SyncResult(oc, glm)
         }
+    }
+
+    internal suspend fun fetchWithTimeout(
+        providerId: String,
+        fetch: () -> ProviderSnapshot,
+    ): ProviderSnapshot = runCatching {
+        withTimeout(PER_PROVIDER_TIMEOUT_MS) { fetchOnIo(providerId, fetch) }
+    }.getOrElse { e ->
+        // TimeoutCancellationException 也转为错误快照
+        ProviderSnapshot(
+            providerId = providerId,
+            ok = false,
+            errorMessage = when (e) {
+                is kotlinx.coroutines.TimeoutCancellationException -> "请求超时(${PER_PROVIDER_TIMEOUT_MS / 1000}s)"
+                else -> e.message?.take(120) ?: e.javaClass.simpleName
+            },
+            fetchedAtMillis = System.currentTimeMillis(),
+        )
     }
 
     /** 内联同步失败/超时后是否需要 WorkManager 兜底重试 */
@@ -56,7 +79,6 @@ object SyncEngine {
 
     /**
      * 网络请求永远在 IO 线程执行（fetch 是阻塞式 HttpURLConnection）。
-     * 单独暴露供单测断言线程。
      */
     internal suspend fun fetchOnIo(
         providerId: String,
@@ -73,13 +95,23 @@ object SyncEngine {
     }
 
     /**
-     * 持久化决策：失败不覆盖旧快照（保护上次成功数据，组件继续显示旧额度+旧时间戳）；
-     * 只有从未成功过时才写错误占位（让组件有东西可显示）。
+     * 失败时保留历史 percent，只覆盖 ok/errorMessage/fetchedAt。
+     * 成功或无历史时直接用新快照。
      */
+    fun mergePreservingData(existing: ProviderSnapshot?, fresh: ProviderSnapshot): ProviderSnapshot {
+        if (fresh.ok || existing == null) return fresh
+        // 保留旧的进度数据，仅刷新错误与时间戳，确保用户能看到"刚刚尝试过但失败了"
+        return existing.copy(
+            ok = false,
+            errorMessage = fresh.errorMessage,
+            fetchedAtMillis = fresh.fetchedAtMillis,
+        )
+    }
+
     internal fun decidePersist(freshOk: Boolean, hasExisting: Boolean): Boolean =
         freshOk || !hasExisting
 
-    private suspend fun persist(context: Context, fresh: ProviderSnapshot, hasExisting: Boolean) {
-        if (decidePersist(fresh.ok, hasExisting)) Store.saveSnapshot(context, fresh)
+    private suspend fun persistMerged(context: Context, merged: ProviderSnapshot) {
+        Store.saveSnapshot(context, merged)
     }
 }
